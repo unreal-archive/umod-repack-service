@@ -45,7 +45,7 @@ public class SubmissionProcessor implements Closeable {
 	private static final Duration EXTRACT_TIMEOUT = Duration.ofSeconds(30);
 	private static final Set<String> UMOD_FILES = Set.of("umod", "ut2mod", "ut4mod");
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	static final ObjectMapper MAPPER = new ObjectMapper();
 
 	static {
 		MAPPER.configure(SerializationFeature.INDENT_OUTPUT, true);

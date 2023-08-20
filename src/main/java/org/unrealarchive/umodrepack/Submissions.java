@@ -53,24 +53,26 @@ public class Submissions {
 		public JobState state;
 		public boolean done;
 
-		public final Set<String> files = new HashSet<>();
+		public final Set<String> files;
 
 		public final transient Map<String, Path> repackedFiles = new HashMap<>();
 
 		public final transient BlockingQueue<LogEntry> logEvents;
 
-		@ConstructorProperties({ "id", "log", "state" })
-		public Job(String id, List<LogEntry> log, JobState state) {
+		@ConstructorProperties({ "id", "log", "state", "files" })
+		public Job(String id, List<LogEntry> log, JobState state, Set<String> files) {
 			this.id = id;
 			this.log = log;
 			this.state = state;
+			this.files = files;
 			this.done = false;
 
 			this.logEvents = new ArrayBlockingQueue<>(20);
 		}
 
 		public Job() {
-			this(Long.toHexString(Double.doubleToLongBits(Math.random())).substring(8), new ArrayList<>(), JobState.CREATED);
+			this(Long.toHexString(Double.doubleToLongBits(Math.random())).substring(8), new ArrayList<>(), JobState.CREATED,
+				 new HashSet<>());
 			log("Job created with ID " + id);
 		}
 
@@ -119,7 +121,7 @@ public class Submissions {
 			return Collections.unmodifiableList(log);
 		}
 
-		public List<LogEntry> pollLog(Duration timeout) throws InterruptedException {
+		public Job pollLog(Duration timeout) throws InterruptedException {
 			final LogEntry head = logEvents.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
 			final List<LogEntry> polledLogs = new ArrayList<>();
 			if (head != null) polledLogs.add(head);
@@ -127,7 +129,7 @@ public class Submissions {
 
 			if (!done && state.done()) done = true;
 
-			return polledLogs;
+			return new Job(id, polledLogs, state, files);
 		}
 
 		public LogEntry logHead() {

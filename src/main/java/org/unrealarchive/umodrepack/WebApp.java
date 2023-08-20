@@ -225,13 +225,13 @@ public class WebApp implements Closeable {
 				try {
 					if (job == null) {
 						exchange.setStatusCode(404);
-						exchange.getResponseSender().send("[]");
+						exchange.getResponseSender().send("{}");
 						return;
 					}
 
 					final Deque<String> catchup = exchange.getQueryParameters().getOrDefault("catchup", emptyDeque);
 					if (!catchup.isEmpty() && catchup.getFirst().equals("1")) {
-						exchange.getResponseSender().send(MAPPER.writeValueAsString(job.log));
+						exchange.getResponseSender().send(MAPPER.writeValueAsString(job));
 					} else {
 						exchange.getResponseSender().send(MAPPER.writeValueAsString(job.pollLog(Duration.ofSeconds(15))));
 					}
