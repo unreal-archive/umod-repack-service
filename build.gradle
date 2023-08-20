@@ -1,0 +1,144 @@
+plugins {
+	id 'java'
+	id 'application'
+	id 'maven-publish'
+	id 'jacoco'
+
+	id 'org.gradlex.extra-java-module-info' version '1.4'
+	id 'org.beryx.jlink' version '2.26.0'
+}
+
+group = 'org.unrealarchive'
+version = "1.0"
+if (System.getenv().containsKey("BUILD_NUMBER")) {
+	version += ".${System.env.BUILD_NUMBER}"
+} else version += ".DEV"
+
+application {
+	mainClassName = 'org.unrealarchive.umodrepack.Main'
+	mainModule = 'unreal.archive.umodrepack'
+}
+
+compileJava {
+    options.release = 17
+}
+
+jlink {
+	mergedModuleName = "unreal.archive.umodrepack.merged"
+	options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+
+	imageName = "${project.name}"
+	imageDir = file("${buildDir}/${project.name}")
+
+	jpackage {
+		installerType = project.findProperty('installerType')
+	}
+}
+
+repositories {
+	mavenCentral()
+	mavenLocal()
+	maven {
+		url "https://code.shrimpworks.za.net/artefacts"
+		matching {
+			group "org.unrealarchive"
+			group "net.shrimpworks"
+		}
+	}
+}
+
+def tarBinary = artifacts.add('archives', layout.buildDirectory.file("${project.name}.tgz").get().asFile) {
+	type 'tgz'
+	builtBy 'jlinkTar'
+}
+
+tasks.register('jlinkTar', Tar) {
+	dependsOn jlinkZip
+	archiveFileName = "${jlink.imageName.get()}.tgz"
+	destinationDirectory = file("${buildDir}")
+	compression = Compression.GZIP
+
+	into("${jlink.imageName.get()}") {
+		from jlink.imageDir
+	}
+}
+
+publishing {
+	repositories {
+		maven {
+			name = "ShrimpWorks"
+			url = 'https://code.shrimpworks.za.net/artefacts/'
+			authentication {
+				basic(BasicAuthentication)
+			}
+			credentials(PasswordCredentials) {
+				username = "${System.env.ARTEFACTS_USER}"
+				password = "${System.env.ARTEFACTS_PASSWORD}"
+			}
+		}
+	}
+	publications {
+		maven(MavenPublication) {
+			from components.java
+		}
+		mavenLatest(MavenPublication) {
+			pom {
+				version = "latest"
+			}
+			artifact tarBinary
+		}
+	}
+}
+
+dependencies {
+	implementation 'net.shrimpworks:unreal-package-lib:1.11.25'
+	implementation 'org.unrealarchive:common:1.13.308'
+
+	implementation 'com.fasterxml.jackson.core:jackson-databind:2.14.3'
+
+	implementation 'org.slf4j:slf4j-api:2.0.5'
+	implementation 'org.slf4j:slf4j-simple:2.0.5'
+
+	implementation 'io.undertow:undertow-core:2.3.6.Final'
+
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'
+	testImplementation 'org.mockito:mockito-core:5.2.0'
+}
+
+extraJavaModuleInfo {
+	failOnMissingModuleInfo.set(false)
+
+	module("org.jboss.xnio:xnio-api", "xnio.api") {
+		exports("org.xnio")
+	}
+
+	module("io.undertow:undertow-core", "undertow.core") {
+		requires("xnio.api")
+
+		exports("io.undertow")
+		exports("io.undertow.io")
+		exports("io.undertow.server")
+		exports("io.undertow.server.handlers.form")
+		exports("io.undertow.util")
+	}
+}
+
+jar {
+	manifest {
+		attributes(
+				'Implementation-Title': project.name,
+				'Implementation-Version': project.version,
+				'Main-Class': mainClassName,
+		)
+	}
+}
+
+test {
+	useJUnitPlatform()
+}
+
+jacocoTestReport {
+	reports {
+		xml.required = true
+	}
+}
