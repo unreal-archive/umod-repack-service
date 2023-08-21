@@ -76,6 +76,7 @@ public class SubmissionProcessor implements Closeable {
 							sub.job.log("Picked up for processing");
 							process(sub);
 						} catch (Exception e) {
+							sub.job.done = true;
 							sub.job.log(Submissions.JobState.FAILED, String.format("Failed to process submission: %s", e.getMessage()), e);
 							logger.warn("Submission processing failure", e);
 						} finally {
@@ -171,9 +172,12 @@ public class SubmissionProcessor implements Closeable {
 			for (Path in : submission.files) {
 				hasUmods = hasUmods && repackFile(submission.job, in);
 			}
+
+			submission.job.done = true;
 			if (hasUmods) submission.job.log(Submissions.JobState.COMPLETED, "File processing completed", Submissions.LogType.GOOD);
 			else submission.job.log(Submissions.JobState.NO_UMOD, "There were no UMOD files to process", Submissions.LogType.WARN);
 		} catch (Exception e) {
+			submission.job.done = true;
 			submission.job.log(Submissions.JobState.FAILED, "There was an error", e);
 		} finally {
 			fileCleanup(submission);
